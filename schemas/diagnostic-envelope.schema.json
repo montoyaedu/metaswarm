@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaswarm.dev/diagnostic-envelope/0.1/schema.json",
+  "title": "metaswarm Diagnostic envelope (v0)",
+  "description": "Envelope shape for every diagnostic emitted by a metaswarm pack-system validator, the loader, or the test harness. Locked by ADR-0002 §'Diagnostic envelope'. Updates require a superseding ADR per ADR-0011 §1. Mirror of `src/pack-system/diagnostics/types.ts`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "code",
+    "severity",
+    "validator",
+    "location",
+    "message",
+    "fix_hint",
+    "docs_url"
+  ],
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "Stable diagnostic identifier of the form `<prefix>-<digits>`, where `<prefix>` is one of the v0 code prefixes registered in `src/pack-system/diagnostics/registry.ts` (MS-SCH, MS-CAP-PERM, MS-EXT, MS-DEP, MS-CFL, MS-NS, MS-GATE, MS-CAP-BIND, MS-HRN-CAT<N>).",
+      "pattern": "^MS-[A-Z]+(?:-[A-Z]+)*?(?:-CAT\\d+)?-\\d+$"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["error", "warning", "info"]
+    },
+    "validator": {
+      "type": "string",
+      "description": "Validator or harness component that emitted this diagnostic, e.g. `JsonSchemaValidator`, `NamespaceCollisionValidator`, `Harness:cat12`.",
+      "minLength": 1
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "path"],
+      "properties": {
+        "file": { "type": "string", "minLength": 1 },
+        "path": {
+          "type": "string",
+          "description": "JSON Pointer (RFC 6901) into the parsed manifest or other JSON-shaped artifact.",
+          "pattern": "^(/|/.*|)$"
+        },
+        "line": { "type": "integer", "minimum": 1 },
+        "col": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable, one-sentence explanation."
+    },
+    "fix_hint": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Imperative, actionable repair instruction."
+    },
+    "enforces": {
+      "type": "array",
+      "description": "Invariant numbers from docs/principles.md that this diagnostic upholds. v0 invariant range is 1..28 (frame-frozen by ADR-0011 §1).",
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 28
+      },
+      "uniqueItems": true
+    },
+    "related": {
+      "type": "array",
+      "description": "Cross-file context (e.g., the OTHER pack involved in a namespace collision). Each entry follows the same envelope.",
+      "items": { "$dynamicRef": "#diagnostic" }
+    },
+    "docs_url": {
+      "type": "string",
+      "description": "Deep link to the relevant ADR section or principles invariant. In-repo anchor convention: `<adr-or-principles>.md#invariant-NN` or `<adr-or-principles>.md#section-X`. Full URIs are also accepted. Validated as `uri-reference` (RFC 3986) so relative repo paths resolve. The CI lint script (`scripts/lint-docs-anchors.ts`) resolves the in-repo anchor forms.",
+      "format": "uri-reference"
+    }
+  },
+  "$dynamicAnchor": "diagnostic"
+}

@@ -27,7 +27,8 @@
     "pack:build": "tsc -p tsconfig.pack.json --noEmit",
     "pack:test": "vitest run --config tests/pack-system/vitest.config.ts --passWithNoTests",
     "pack:test:coverage": "vitest run --config tests/pack-system/vitest.config.ts --coverage --passWithNoTests",
-    "pack:test:contract": "echo 'pack:test:contract — placeholder; custom contract reporter lands in WU8 (plan §4.2)'"
+    "pack:test:contract": "echo 'pack:test:contract — placeholder; custom contract reporter lands in WU8 (plan §4.2)'",
+    "pack:lint:anchors": "node scripts/lint-docs-anchors.js"
   },
   "keywords": [
     "claude-code",
