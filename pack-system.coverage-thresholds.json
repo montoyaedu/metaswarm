@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Coverage thresholds for the pack-system module (metaswarm pack system v0 — WU0). Separate from the root `.coverage-thresholds.json` (which targets the orchestrator project) to avoid collision. Source of truth for the pack-system module's vitest coverage gate; `tests/pack-system/vitest.config.ts` reads these values at config-load time.",
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100
+}

@@ -23,6 +23,12 @@
     "GEMINI.md",
     "gemini-extension.json"
   ],
+  "scripts": {
+    "pack:build": "tsc -p tsconfig.pack.json --noEmit",
+    "pack:test": "vitest run --config tests/pack-system/vitest.config.ts --passWithNoTests",
+    "pack:test:coverage": "vitest run --config tests/pack-system/vitest.config.ts --coverage --passWithNoTests",
+    "pack:test:contract": "echo 'pack:test:contract — placeholder; custom contract reporter lands in WU8 (plan §4.2)'"
+  },
   "keywords": [
     "claude-code",
     "codex-cli",
@@ -39,5 +45,15 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "@vitest/coverage-v8": "1.6.1",
+    "typescript": "5.4.5",
+    "vitest": "1.6.1"
   }
 }

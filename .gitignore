@@ -17,6 +17,12 @@
 # Node
 node_modules/
 
+# Pack-system v0 build + code-coverage outputs (WU0).
+# `coverage-contract/` is intentionally NOT ignored — it holds a checked-in
+# README placeholder until WU8 lands the custom contract reporter.
+dist/
+coverage/
+
 # OS
 .DS_Store
 Thumbs.db
