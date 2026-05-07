@@ -1,7 +1,7 @@
-# Pack System v0 MVP — Implementation Plan (v0.2 — post Plan Review Gate)
+# Pack System v0 MVP — Implementation Plan (v0.3 — post-WU1 hybrid execution mode)
 
-**Date**: 2026-05-07 (revised post Plan Review Gate)
-**Status**: Draft, PASS-WITH-CONDITIONS conditions applied; pending final user approval before WU0 kickoff
+**Date**: 2026-05-07 (v0.3 amendment after WU1 close: hybrid execution mode formalized + semantic choke point parallel-execution rule added)
+**Status**: WU0 + WU1 committed. WU2 is the next "contract-shaping load-bearing unit" and remains full orchestrated; downstream WUs adopt hybrid execution per §6 + §6.1.
 **Frame**: FROZEN per `docs/adr/0011-v0-frame-freeze-and-success-criteria.md`
 **Companion artifacts**: ADRs 0000-0011, `docs/plans/2026-05-06-pack-system-synthesis.md`, `docs/principles.md`, `docs/examples/minimal-pack/`.
 
@@ -128,21 +128,45 @@ WU8 has parallel sub-tasks: cats 1-11 + 13-16 run alongside WU9 (no WU9 dependen
 
 **~20% schedule buffer** baked in before CP1 per Feasibility F7 — the team budgets explicit slack for R1 (mock-adapter API retro-feed) and R5 (operator recruiting).
 
-Parallelization opportunities:
-- After WU2: WU3 + WU4 + WU6 (three streams — type-freeze sub-task at WU2 close ensures rebase-free).
-- After WU4: WU5 begins. After WU5+WU6: WU7 begins.
-- After WU7: WU9 + WU11 in parallel; WU8 cats 1-11 + 13-16 can begin.
+Parallelization opportunities (revised v0.3 to honor §6.1 semantic choke point rule):
+- After WU2: WU3 ‖ WU4 (two streams; type-freeze at WU2 close ensures rebase-free). **WU6 follows WU4** — both touch semantic choke points (WU4 = invariant enforcement via permission policy; WU6 = audit semantics) so cannot run in parallel per §6.1.
+- After WU4: WU5 begins (WU5 is not a choke point). After WU5 + WU6: WU7 begins.
+- After WU7: **WU9 first**; WU11 begins only after WU9 closes — both touch invariant enforcement (WU9 = runtime binding semantics + S4; WU11 = invariant 22 via SecretRef + S1/S3) per §6.1. WU8 cats 1-11 + 13-16 can begin in parallel with WU9 (WU8 is itself a choke point but the harness depends on WU9 for cat. 12; the parallel sub-task structure is internal to WU8).
 - After WU8 + WU9 + WU10: cat. 12 closes; WU12 begins.
-- After WU12 + WU13: WU14 + WU15 in parallel.
+- After WU12 + WU13: WU14 + WU15 in parallel (fixtures + docs, not choke points).
 
-## 6. Execution method per WU
+Critical-path impact of v0.3 §6.1 rule: ~1 week slip (WU4↔WU6 + WU9↔WU11 serialization). Acceptable trade-off for eliminating semantic-divergence risk.
 
-Per user adjustment: orchestrated on contract/invariant-heavy WUs; subagent-driven on integration/fixture-heavy WUs.
+## 6. Execution method per WU (revised v0.3: hybrid execution mode)
 
-- **Orchestrated execution** (4-phase loop with adversarial review per WU): WU1, WU2, WU4, WU6, WU7, WU8, WU9, WU11, WU17.
-- **Subagent-driven** (per-task subagent dispatch with code review between): WU0, WU3, WU5, WU10, WU12, WU13, WU14, WU15, WU16.
+The execution model distinguishes **three tiers** based on whether the WU shapes contracts and semantic enforcement vs. expands implementation surface against an already-locked contract. This formalizes the implicit distinction between **contract-shaping units** and **implementation-expansion units**.
 
-External tools (Codex, Gemini) deferred per user — revisit after CP1.
+| Tier | Description | WUs |
+|---|---|---|
+| **Orchestrated (full)** | 4-phase loop with fresh adversarial reviewer; type-freeze on close where applicable; no batching with any other WU; semantic choke point work | WU2, WU4, WU6, WU7, WU8, WU9, WU11, WU17 |
+| **Orchestrated-lite** (NEW v0.3) | subagent implementation + **mandatory adversarial/runtime review** with explicit runtime/abstraction-leakage probes; no blind batching with other runtime-sensitive WUs | WU10 |
+| **Batch-subagent** | per-task subagent dispatch; cluster-batchable when deps allow; code review between; lightweight adversarial check | WU3, WU5, WU12, WU13, WU14, WU15, WU16 |
+
+WU0 (subagent-driven) and WU1 (orchestrated) are complete.
+
+**Why WU10 is orchestrated-lite, not batch-subagent**: `MockRuntimeAdapter` is the only second-runtime consumer in v0; if it leaks Claude Code-specific assumptions, abstraction-leakage propagates into every conformance test that depends on cat. 12 parity (and invariant 2 collapses from mechanical to aspirational). Subagent implementation is fine; mandatory runtime-leakage adversarial review is non-negotiable; batching with other runtime-sensitive WUs (WU9, WU11) is forbidden per §6.1.
+
+**External tools (Codex, Gemini) — deferred until after WU2 close.** Architectural reasoning, not scheduling: WU2 stabilizes the operational language of the system (validator semantics, diagnostic taxonomy, enforcement contracts, loader invariants). Cross-model generation before that point risks **model-style divergence masquerading as implementation variance** — the worst kind of noise. After WU2, the schema, diagnostic envelope, validator prefixes, invariant references, and enforcement semantics are stable; cross-model use becomes safe (Codex on implementation-heavy units, Gemini as adversarial heterogeneity source). Re-evaluate at WU2 close, not at CP1.
+
+## 6.1 Semantic choke points and parallel execution rule (NEW v0.3)
+
+The system has **four semantic choke points** — surfaces where two parallel WUs can produce ambiguous or divergent semantics that the v0 frame cannot resolve:
+
+1. **Validator semantics** — what a semantic validator means and rejects (touched by: WU2 seven validators; WU8 cat. 2; WU11 credential-resolver pack-scoping check)
+2. **Runtime binding semantics** — what `runtime_bindings` per-runtime keys mean and how adapters resolve them (touched by: WU9, WU10)
+3. **Audit semantics** — what `JsonlAuditWriter`, hash chain, runtime-filled fields, and leak detector enforce (touched by: WU6, WU8 cat. 4 + cat. 7, WU10 cross-pack state hygiene)
+4. **Invariant enforcement mapping** — how each of 28 invariants maps to test/runtime-check enforcement (touched by: WU4, WU8, WU11, WU15)
+
+**Rule**: **no two WUs that both modify any of these four choke points may run in parallel.** Serialize them, even when the file-system dependency graph in §5 would otherwise allow concurrency. WUs that touch *no* choke point (fixtures, docs, scaffolding, registry plumbing) may parallel freely subject to file-level deps.
+
+**Why these four**: each one is a place where the *shape of the answer* — not just the implementation — affects every downstream consumer. A divergence in validator semantics across two parallel WUs produces error messages that contradict each other; a divergence in runtime binding semantics produces packs that pass under one adapter and fail under another; a divergence in audit semantics produces hash chains with two notions of "canonical"; a divergence in enforcement mapping produces invariants that two reviewers can both claim are enforced.
+
+**Practical impact** is documented in §5 (revised parallelization opportunities). Serialization adds ~1 week to the critical path; this is the cost of eliminating the most expensive class of v0 bugs (semantic divergence detected only at integration time).
 
 ## 7. Human checkpoints
 
@@ -215,7 +239,15 @@ OR: "no surface added, AA-Q1-Q7 N/A"
 - If yes: link to superseding ADR
 ```
 
-## 11. Patch summary (post Plan Review Gate)
+## 11. Patch summary
+
+### v0.3 (post-WU1 close, 2026-05-07)
+- §1 header: status updated to "WU0 + WU1 committed".
+- §5: parallelization opportunities revised to honor §6.1 semantic choke point rule (WU4↔WU6 serialized; WU9↔WU11 serialized).
+- §6: replaced flat orchestrated/subagent split with three-tier model (orchestrated full / orchestrated-lite / batch-subagent). WU10 promoted to orchestrated-lite. External tools deferred to after WU2 close (architectural reasoning, not scheduling).
+- §6.1 new: four semantic choke points (validator semantics, runtime binding semantics, audit semantics, invariant enforcement mapping); rule "no parallel WUs touching any choke point".
+
+### v0.2 (post Plan Review Gate, 2026-05-07)
 
 Patches applied vs. v0.1 of this plan (each is a conservative reinforcement of locked ADRs, no new surface beyond what the ADRs already mandate):
 
