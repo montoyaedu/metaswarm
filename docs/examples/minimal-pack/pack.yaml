@@ -1,0 +1,72 @@
+# Minimal metaswarm pack — passes `metaswarm pack test` with no customization.
+# Authoring guide: docs/examples/minimal-pack/README.md
+# Format reference: docs/adr/0002-schema-validation-language.md
+
+pack_format: "0.1"        # envelope contract version (ADR-0002)
+name: example-minimal
+version: "0.1.0"          # semver of pack content (ADR-0002)
+description: "Minimal pack fixture for documentation and harness golden tests."
+
+requires:
+  metaswarm: ">=0.11"
+  capabilities:
+    - routing.task-router/v1
+    - integrations.provider/v1
+  runtimes:
+    - claude-code         # production runtime (ADR-0001)
+    - mock                # required v0 — exercised by ADR-0008 cat. 12 parity test (no default)
+
+provides:
+  capabilities:
+    - routing.task-router/v1
+    - integrations.provider/v1
+  agents:
+    - example-agent
+  rubrics: []
+  workflows: []
+
+routing_hints:
+  # L1 declarative routing — the core's default task-router scores from these
+  # if the pack does not override with a custom L2 implementation.
+  - keyword: "example"
+    weight: 1.0
+  - tag: "domain:example"
+    weight: 1.0
+
+runtime_bindings:
+  # Per-runtime-keyed map (ADR-0004 revision). Outer key = capability id;
+  # inner key = runtime adapter id; value = adapter-specific binding shape.
+  # v0: both `claude-code` and `mock` keys are mandatory (no default).
+  routing.task-router/v1:
+    claude-code:
+      kind: ts-module
+      path: ./runtime/task-router.ts
+    mock:
+      # Same module — MockRuntimeAdapter intercepts at the adapter boundary.
+      kind: ts-module
+      path: ./runtime/task-router.ts
+  integrations.provider/v1:
+    claude-code:
+      kind: ts-module
+      path: ./runtime/integrations-provider.ts
+    mock:
+      kind: ts-module
+      path: ./runtime/integrations-provider.ts
+
+integrations:
+  actions:
+    - id: example.echo/v1
+      capability: integrations.provider/v1
+      input_schema: ./schemas/echo.input.json
+      output_schema: ./schemas/echo.output.json
+      side_effect_profile:
+        scope: internal               # internal | external-read | external-write
+        reversibility: reversible      # reversible | irreversible
+        governance:
+          human_approval_required: false
+
+credentials:
+  required: []   # no external integrations in the minimal pack
+
+permissions:
+  irreversible: []
