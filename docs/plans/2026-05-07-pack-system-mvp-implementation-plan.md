@@ -1,7 +1,7 @@
-# Pack System v0 MVP — Implementation Plan (v0.3 — post-WU1 hybrid execution mode)
+# Pack System v0 MVP — Implementation Plan (v0.4 — post-WU2 external tools policy)
 
-**Date**: 2026-05-07 (v0.3 amendment after WU1 close: hybrid execution mode formalized + semantic choke point parallel-execution rule added)
-**Status**: WU0 + WU1 committed. WU2 is the next "contract-shaping load-bearing unit" and remains full orchestrated; downstream WUs adopt hybrid execution per §6 + §6.1.
+**Date**: 2026-05-07 (v0.4 amendment after WU2 close: external tools policy clarified — defer to post-CP1/WU8, no Gemini, explicit adapter contract required, no auto-discovery)
+**Status**: WU0 + WU1 + WU2 committed. Manifest-surface type freeze in effect. WU3 (batch-subagent) and WU4 (orchestrated, choke point) are next; per §6.1 they may parallel because WU3 is not a choke point. External tools defer per §6 v0.4 below.
 **Frame**: FROZEN per `docs/adr/0011-v0-frame-freeze-and-success-criteria.md`
 **Companion artifacts**: ADRs 0000-0011, `docs/plans/2026-05-06-pack-system-synthesis.md`, `docs/principles.md`, `docs/examples/minimal-pack/`.
 
@@ -151,7 +151,15 @@ WU0 (subagent-driven) and WU1 (orchestrated) are complete.
 
 **Why WU10 is orchestrated-lite, not batch-subagent**: `MockRuntimeAdapter` is the only second-runtime consumer in v0; if it leaks Claude Code-specific assumptions, abstraction-leakage propagates into every conformance test that depends on cat. 12 parity (and invariant 2 collapses from mechanical to aspirational). Subagent implementation is fine; mandatory runtime-leakage adversarial review is non-negotiable; batching with other runtime-sensitive WUs (WU9, WU11) is forbidden per §6.1.
 
-**External tools (Codex, Gemini) — deferred until after WU2 close.** Architectural reasoning, not scheduling: WU2 stabilizes the operational language of the system (validator semantics, diagnostic taxonomy, enforcement contracts, loader invariants). Cross-model generation before that point risks **model-style divergence masquerading as implementation variance** — the worst kind of noise. After WU2, the schema, diagnostic envelope, validator prefixes, invariant references, and enforcement semantics are stable; cross-model use becomes safe (Codex on implementation-heavy units, Gemini as adversarial heterogeneity source). Re-evaluate at WU2 close, not at CP1.
+**External tools — deferred until after CP1/WU8 close (v0.4 revision).** v0.3 said "after WU2 close"; v0.4 (post-WU2) revises to "after CP1/WU8" with stronger justification: WU2 stabilizes the *operational language* of the system (validator semantics, diagnostic taxonomy, enforcement contracts, loader invariants), but CP1/WU8 stabilizes the *automated-protection layer* (harness, audit, permission model, conformance suites). External implementation workers must operate against a system that detects misalignment automatically; before WU8 the harness is still under construction. After WU8, the protection layer absorbs the kinds of drift external workers might introduce.
+
+**Available external tools** (per user environment, v0.4): Claude Code (orchestrator / reviewer / governance authority — primary), Codex CLI (login via ChatGPT account or API key; deferred implementation worker), GitHub Copilot CLI (autopilot + `--model auto` mode; deferred implementation worker). **Gemini is not available in this environment and will not be configured.**
+
+**Explicit adapter contract (NOT auto-discovery).** External tool availability via `command -v` is necessary but not sufficient. To be used as a governed worker, an external tool requires an entry in `.metaswarm/external-tools.yaml` declaring at minimum: (a) `command` (executable + args), (b) `mode` (autopilot / interactive / oneshot), (c) `model` / autopilot config where applicable, (d) `working_directory` scope, (e) `allowed_operations` (file write/read/exec patterns), (f) `output_contract` (expected JSON/text shape), (g) `acceptance_criteria` (how the orchestrator validates the worker's output), (h) `timeout`, (i) `failure_policy` (retry / escalate / abandon).
+
+Without this entry, an external tool is treated as unavailable. **The orchestrator does NOT auto-discover and use any external CLI present in `$PATH`.** "codex: available" or "copilot: available" means only that the binary exists; it does not mean the orchestrator may use it.
+
+**Post-CP1/WU8 enablement plan.** Codex CLI as implementation worker on batch-subagent WUs (WU12, WU13, WU14, WU15, WU16 — fixture and doc-heavy). Copilot CLI as tactical/implementation worker with `--mode autopilot` and `--model auto` (per-task model overrides only when justified by the task brief). Claude Code retains orchestration, adversarial review, governance gates (plan/design review), and final-commit authority. **Adapter assignment per WU is decided per task at activation time, not pre-allocated.**
 
 ## 6.1 Semantic choke points and parallel execution rule (NEW v0.3)
 
@@ -240,6 +248,10 @@ OR: "no surface added, AA-Q1-Q7 N/A"
 ```
 
 ## 11. Patch summary
+
+### v0.4 (post-WU2 close, 2026-05-07)
+- §1 header: status updated to "WU0 + WU1 + WU2 committed; manifest-surface type freeze in effect".
+- §6 external tools subsection: deferred trigger moved from "WU2 close" to "CP1/WU8 close" with stronger justification (automated-protection layer must be in place before external workers operate against it). Gemini removed (not available in environment). Explicit adapter contract required (`.metaswarm/external-tools.yaml` with 9-field minimum); auto-discovery via `command -v` explicitly forbidden. Available tools enumerated: Claude Code (orchestrator/reviewer/governance), Codex CLI (deferred impl worker), GitHub Copilot CLI (deferred tactical worker with autopilot + model auto). Per-WU adapter assignment decided at activation time, not pre-allocated.
 
 ### v0.3 (post-WU1 close, 2026-05-07)
 - §1 header: status updated to "WU0 + WU1 committed".
