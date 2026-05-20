@@ -1,3 +1,12 @@
+## Non-negotiable fork policy
+
+This fork is optimized for **clean rebases onto `upstream/main`**, not for upstream PR mergeability.
+
+- Keep fork-specific code in dedicated namespaces and modules whenever possible.
+- Prefer additive integration over edits to shared upstream entrypoints and root files.
+- Treat high-churn files (`package.json`, lockfiles, root agent/instruction files, shared config) as expensive integration points: change them only when the behavior cannot live at the edges.
+- When adding compatibility layers, use explicit feature detection and fallback paths so the shim can be removed cleanly if upstream later ships the capability out of the box.
+
 Bash(git add src/pack-system/permissions/ src/pack-system/gates/ tests/pack-system/permissions/ tests/pack-system/gates/ && git commit 
       -m "$(cat <<'EOF'
       feat(pack-sy…)                                                                                                                     
