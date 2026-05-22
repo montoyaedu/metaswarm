@@ -1,4 +1,4 @@
-// Simple phase-based model router (Option A)
+// Simple phase-based model router
 
 export type TaskPhase = "plan" | "implement" | "review" | "analysis"
 
@@ -12,28 +12,28 @@ export interface ModelDecision {
   profile: TaskPhase
 }
 
+const LOG_PREFIX = "[fork:router]"
+
 export const modelRouter = {
   selectModel(ctx: ModelContext): ModelDecision {
     const phase = ctx?.phase || "analysis"
 
-    // Route most phases through OpenCode to leverage free models
+    let decision: ModelDecision
+
     if (phase === "review") {
-      return { provider: "opencode", profile: "review" }
+      decision = { provider: "opencode", profile: "review" }
+    } else if (phase === "plan") {
+      decision = { provider: "opencode", profile: "plan" }
+    } else if (phase === "analysis") {
+      decision = { provider: "opencode", profile: "analysis" }
+    } else if (phase === "implement") {
+      decision = { provider: "opencode", profile: "implement" }
+    } else {
+      decision = { provider: "native", profile: "analysis" }
     }
 
-    if (phase === "plan") {
-      return { provider: "opencode", profile: "plan" }
-    }
+    console.debug(`${LOG_PREFIX} phase="${phase}" → provider=${decision.provider} profile=${decision.profile}`)
 
-    if (phase === "analysis") {
-      return { provider: "opencode", profile: "analysis" }
-    }
-
-    // Keep implementation flexible (can switch later)
-    if (phase === "implement") {
-      return { provider: "opencode", profile: "implement" }
-    }
-
-    return { provider: "native", profile: "analysis" }
+    return decision
   }
 }

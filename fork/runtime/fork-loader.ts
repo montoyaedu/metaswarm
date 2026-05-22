@@ -3,7 +3,7 @@
 
 export interface ForkModule {
   modelRouter?: {
-    selectModel?: (ctx: any) => string
+    selectModel?: (ctx: any) => { provider: string; profile: string }
   }
   workflow?: {
     beforeStep?: (step: string, ctx: any) => void
