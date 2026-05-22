@@ -207,3 +207,7 @@ Development patterns and standards are documented in `guides/`:
 <!-- Add project-specific notes, conventions, or constraints here.
      Examples: "Always use server components for data fetching",
      "The payments module is legacy — do not refactor without approval" -->
+
+
+<!-- Fork extension: Beads integration -->
+See /fork/beads-integration.md

@@ -75,3 +75,6 @@ When external AI tools are configured (`.metaswarm/external-tools.yaml`), the or
 ### Visual Review
 
 When tasks produce visual output, agents can use `$visual-review` to capture screenshots via Playwright for visual inspection.
+
+<!-- Fork extension: Beads integration -->
+See /fork/beads-integration.md

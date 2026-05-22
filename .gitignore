@@ -17,6 +17,8 @@
 # Node
 node_modules/
 
+# Note: fork/local ignores moved to .git/info/exclude to reduce rebase conflicts
+
 # OS
 .DS_Store
 Thumbs.db
