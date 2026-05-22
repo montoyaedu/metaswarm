@@ -1,0 +1,21 @@
+{
+  "name": "metaswarm-pack-system",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p ../tsconfig.pack.json --noEmit",
+    "test": "vitest run --config ../tests/pack-system/vitest.config.ts",
+    "test:coverage": "vitest run --config ../tests/pack-system/vitest.config.ts --coverage"
+  },
+  "dependencies": {
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1",
+    "yaml": "^2.4"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "@vitest/coverage-v8": "1.6.1",
+    "typescript": "5.4.5",
+    "vitest": "1.6.1"
+  }
+}
