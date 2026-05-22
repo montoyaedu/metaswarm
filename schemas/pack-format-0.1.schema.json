@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaswarm.dev/pack-format/0.1/schema.json",
+  "title": "metaswarm pack-format 0.1 manifest schema",
+  "description": "Structural validation for `pack.yaml` (after YAML parse to JSON). Locked by ADR-0002 (envelope), ADR-0004 (capability ontology + runtime_bindings + credentials), ADR-0005 (side_effect_profile multidimensional + conflict-policy fields), ADR-0009 (credentials.required logical-name shape). Cross-field constraints (e.g., extends-target resolution, dependency cycles) live in dedicated semantic validators per ADR-0002; this schema is intentionally structural-only (invariant 3).",
+  "type": "object",
+  "unevaluatedProperties": false,
+  "required": [
+    "pack_format",
+    "name",
+    "version",
+    "requires",
+    "provides",
+    "runtime_bindings",
+    "integrations",
+    "credentials"
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "description": "Slug-style identifier: lowercase alphanumerics, hyphens, dots, slashes, underscores. Names of packs, agents, skills, rubrics, workflows, runtime adapters.",
+      "pattern": "^[a-z0-9][a-z0-9._/-]*$",
+      "minLength": 1
+    },
+    "semverString": {
+      "type": "string",
+      "description": "Semantic version string per https://semver.org. Permits standard MAJOR.MINOR.PATCH plus optional pre-release and build metadata.",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\\+[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*)?$"
+    },
+    "semverRange": {
+      "type": "string",
+      "description": "Loose semver range string (e.g. '>=0.11', '^1.2', '~0.3'). Full range syntax matches npm semver; this schema validates only the 'non-empty' shape, deferring detailed range parsing to PackLoader.",
+      "minLength": 1
+    },
+    "capabilityId": {
+      "type": "string",
+      "description": "Capability identifier of the form `<namespace>.<name>/v<MAJOR>` per ADR-0004. v0 closed set: `routing.task-router/v1`, `integrations.provider/v1`, `credentials.resolver/v1`. Schema accepts the lexical shape; semantic validation against the closed v0 set happens in PackLoader.",
+      "pattern": "^[a-z][a-z0-9-]*(?:\\.[a-z][a-z0-9-]*)+/v\\d+$"
+    },
+    "actionId": {
+      "type": "string",
+      "description": "Action identifier of the form `<namespace>.<name>/v<MAJOR>` (e.g. `example.echo/v1`, `publishing.buffer.publish/v1`).",
+      "pattern": "^[a-z][a-z0-9-]*(?:\\.[a-z][a-z0-9-]*)+/v\\d+$"
+    },
+    "runtimeId": {
+      "type": "string",
+      "description": "Runtime adapter identifier (e.g. `claude-code`, `mock`, future: `strands`, `headless`).",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "minLength": 1
+    },
+    "schemaRef": {
+      "type": "string",
+      "description": "Reference to a JSON Schema file (relative path) or an inline JSON Schema object would be permitted in a future extension; v0 schema accepts the path form.",
+      "minLength": 1
+    },
+    "sideEffectProfile": {
+      "type": "object",
+      "description": "Multidimensional side-effect profile per ADR-0005 (invariant 18). The PermissionRegistry derives the policy class from these three orthogonal axes (invariant 19).",
+      "additionalProperties": false,
+      "required": ["scope", "reversibility", "governance"],
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": ["internal", "external-read", "external-write"]
+        },
+        "reversibility": {
+          "type": "string",
+          "enum": ["reversible", "irreversible"]
+        },
+        "governance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["human_approval_required"],
+          "properties": {
+            "human_approval_required": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "bindingSpec": {
+      "type": "object",
+      "description": "Runtime-adapter-specific binding shape. v0 ships the `ts-module` shape; future runtimes (Python, gRPC) extend this map.",
+      "required": ["kind"],
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["kind", "path"],
+          "properties": {
+            "kind": { "const": "ts-module" },
+            "path": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    },
+    "routingHint": {
+      "type": "object",
+      "description": "L1 routing-hint entry. Either a `keyword` or a `tag` with a numeric weight. Default scorer aggregates these per ADR-0006.",
+      "additionalProperties": false,
+      "required": ["weight"],
+      "properties": {
+        "keyword": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string", "minLength": 1 },
+        "weight": { "type": "number" }
+      },
+      "oneOf": [{ "required": ["keyword"] }, { "required": ["tag"] }]
+    },
+    "actionDecl": {
+      "type": "object",
+      "description": "Action declaration in `integrations.actions` per ADR-0004 (Modello A). Each action is opaque on business semantics but governable on metadata (invariant 12).",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "capability",
+        "input_schema",
+        "output_schema",
+        "side_effect_profile"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/actionId" },
+        "capability": { "$ref": "#/$defs/capabilityId" },
+        "input_schema": { "$ref": "#/$defs/schemaRef" },
+        "output_schema": { "$ref": "#/$defs/schemaRef" },
+        "side_effect_profile": { "$ref": "#/$defs/sideEffectProfile" },
+        "idempotency": {
+          "type": "string",
+          "description": "Optional idempotency declaration; v0 captures it as a free-form string. ADR-0005 defers per-action retry/circuit-breaker policy.",
+          "minLength": 1
+        }
+      }
+    },
+    "credentialDecl": {
+      "type": "object",
+      "description": "Logical credential entry per ADR-0009 §5. `logical` is the pack-internal name resolved via `credentials.resolver/v1.get(logical)`; `scope` is a free-form scope hint consumed by the resolver (e.g. `read-only`, `write`).",
+      "additionalProperties": false,
+      "required": ["logical", "scope"],
+      "properties": {
+        "logical": { "type": "string", "minLength": 1 },
+        "scope": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "properties": {
+    "pack_format": {
+      "description": "Manifest envelope contract version per ADR-0002. v0 accepts only the value '0.1'; loaders reject `pack_format` major higher than their own.",
+      "const": "0.1"
+    },
+    "name": { "$ref": "#/$defs/identifier" },
+    "version": { "$ref": "#/$defs/semverString" },
+    "description": { "type": "string" },
+    "requires": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metaswarm", "capabilities", "runtimes"],
+      "properties": {
+        "metaswarm": { "$ref": "#/$defs/semverRange" },
+        "capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capabilityId" },
+          "uniqueItems": true
+        },
+        "runtimes": {
+          "type": "array",
+          "description": "Runtime adapters this pack supports. v0 mandatory keys: must include both `claude-code` AND `mock` (ADR-0004 §'v0 mandatory binding keys').",
+          "items": { "$ref": "#/$defs/runtimeId" },
+          "uniqueItems": true,
+          "minItems": 2,
+          "allOf": [
+            {
+              "contains": { "const": "claude-code" }
+            },
+            {
+              "contains": { "const": "mock" }
+            }
+          ]
+        },
+        "packs": {
+          "type": "array",
+          "description": "Optional pack dependencies (ADR-0005). Cycle detection lives in PackDependencyValidator (semantic validator, invariant 3).",
+          "items": { "$ref": "#/$defs/identifier" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "provides": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capabilityId" },
+          "uniqueItems": true
+        },
+        "agents": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/identifier" },
+          "uniqueItems": true
+        },
+        "rubrics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/identifier" },
+          "uniqueItems": true
+        },
+        "workflows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/identifier" },
+          "uniqueItems": true
+        },
+        "skills": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/identifier" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "runtime_bindings": {
+      "type": "object",
+      "description": "Per-runtime-keyed binding map (ADR-0004 revision). Outer key = capability id; inner key = runtime adapter id; value = adapter-specific binding spec. v0 mandatory: every entry under `provides.capabilities` must have both `claude-code` and `mock` inner keys. Structural shape only here; the cross-field RuntimeBindingsCompletenessValidator (WU2) checks the cross-field constraint.",
+      "patternProperties": {
+        "^[a-z][a-z0-9-]*(?:\\.[a-z][a-z0-9-]*)+/v\\d+$": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/bindingSpec" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "integrations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actions"],
+      "properties": {
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/actionDecl" }
+        }
+      }
+    },
+    "credentials": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": {
+        "required": {
+          "type": "array",
+          "description": "v0 supports two shapes for credentials.required: (a) array of `{logical, scope}` objects per ADR-0009; (b) empty array. The minimal-pack fixture uses (b). When non-empty, each entry must follow shape (a).",
+          "items": { "$ref": "#/$defs/credentialDecl" }
+        }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "description": "Permission declarations. Permission classes themselves are derived from `side_effect_profile` per ADR-0005 (invariant 19); this section captures the irreversible-action allowlist surface used by harness category 6.",
+      "additionalProperties": false,
+      "properties": {
+        "irreversible": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/actionId" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "extends": {
+      "type": "object",
+      "description": "Optional `extends` declarations per ADR-0005. Cross-field resolution to existing artifacts lives in ExtendsTargetValidator.",
+      "additionalProperties": true
+    },
+    "gates": {
+      "type": "object",
+      "description": "Optional gate contributions per ADR-0005. Cross-pack stacking lives in GateCompositionValidator.",
+      "additionalProperties": true
+    },
+    "routing_hints": {
+      "type": "array",
+      "description": "Optional L1 routing hints (keyword or tag with weight) consumed by the default scorer per ADR-0006.",
+      "items": { "$ref": "#/$defs/routingHint" }
+    },
+    "compatible_with": {
+      "type": "array",
+      "description": "Optional cross-pack compatibility declarations (invariant 24). Each declared compatibility MUST be backed by a fixture; that constraint is enforced by harness category 8, not this schema.",
+      "items": { "$ref": "#/$defs/identifier" },
+      "uniqueItems": true
+    }
+  }
+}
