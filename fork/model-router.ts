@@ -1,39 +1,44 @@
-// Simple phase-based model router
-
-export type TaskPhase = "plan" | "implement" | "review" | "analysis"
-
-export interface ModelContext {
-  phase?: TaskPhase
-  taskType?: string
-}
-
-export interface ModelDecision {
-  provider: "opencode" | "native"
-  profile: TaskPhase
-}
+import { probe as probeOpenCode } from "./providers/opencode"
+import { probe as probeCodex } from "./providers/codex"
+import { probe as probeGemini } from "./providers/gemini"
+import { probe as probeClaude } from "./providers/claude"
+import type { ProviderName, TaskPhase, ModelContext, ModelDecision } from "./types"
 
 const LOG_PREFIX = "[fork:router]"
+
+const phasePriority: Record<TaskPhase, ProviderName[]> = {
+  review: ["opencode", "codex", "gemini", "claude"],
+  plan: ["opencode", "codex", "gemini", "claude"],
+  implement: ["codex", "opencode", "gemini", "claude"],
+  analysis: ["gemini", "opencode", "codex", "claude"]
+}
+
+function probeProvider(name: ProviderName): boolean {
+  switch (name) {
+    case "opencode": return probeOpenCode()
+    case "codex": return probeCodex()
+    case "gemini": return probeGemini()
+    case "claude": return probeClaude()
+  }
+}
 
 export const modelRouter = {
   selectModel(ctx: ModelContext): ModelDecision {
     const phase = ctx?.phase || "analysis"
+    const priority = phasePriority[phase]
 
-    let decision: ModelDecision
-
-    if (phase === "review") {
-      decision = { provider: "opencode", profile: "review" }
-    } else if (phase === "plan") {
-      decision = { provider: "opencode", profile: "plan" }
-    } else if (phase === "analysis") {
-      decision = { provider: "opencode", profile: "analysis" }
-    } else if (phase === "implement") {
-      decision = { provider: "opencode", profile: "implement" }
-    } else {
-      decision = { provider: "native", profile: "analysis" }
+    for (const provider of priority) {
+      if (probeProvider(provider)) {
+        console.debug(
+          `${LOG_PREFIX} phase="${phase}" → provider=${provider} profile=${phase}`
+        )
+        return { provider, profile: phase }
+      }
     }
 
-    console.debug(`${LOG_PREFIX} phase="${phase}" → provider=${decision.provider} profile=${decision.profile}`)
-
-    return decision
+    throw new Error(
+      `No available provider for phase "${phase}". ` +
+      "Install at least one CLI: opencode, codex, gemini, or claude."
+    )
   }
 }

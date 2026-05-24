@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Resolve symlink (macOS doesn't have readlink -f)
+LINK_PATH="${BASH_SOURCE[0]}"
+while [ -L "$LINK_PATH" ]; do
+    LINK_DIR="$(cd "$(dirname "$LINK_PATH")" && pwd)"
+    LINK_TARGET="$(readlink "$LINK_PATH")"
+    case "$LINK_TARGET" in
+        /*) LINK_PATH="$LINK_TARGET" ;;
+        *)  LINK_PATH="$LINK_DIR/$LINK_TARGET" ;;
+    esac
+done
+SCRIPT_DIR="$(cd "$(dirname "$LINK_PATH")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+exec npx tsx "$ROOT/fork/chat.ts" "$@"

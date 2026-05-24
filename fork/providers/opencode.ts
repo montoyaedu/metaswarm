@@ -6,6 +6,13 @@ import { tmpdir } from "os"
 // Thin wrapper around OpenCode CLI
 // Passes prompt as single positional arg (preserves formatting)
 
+const CLI_NAME = "opencode"
+
+export function probe(): boolean {
+  const result = spawnSync("command", ["-v", CLI_NAME], { encoding: "utf-8" })
+  return result.status === 0
+}
+
 function buildPrompt(input: string, profile: string): string {
   const templates: Record<string, string> = {
     review: `[ROLE]
