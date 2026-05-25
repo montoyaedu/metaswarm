@@ -1,0 +1,27 @@
+{
+  "server": {
+    "port": 4173,
+    "host": "127.0.0.1"
+  },
+  "providers": {
+    "default": "gemini",
+    "phase": {
+      "plan": ["gemini", "codex", "opencode", "claude"],
+      "plan-review": ["gemini", "codex", "opencode", "claude"],
+      "implement": ["codex", "opencode", "gemini", "claude"],
+      "validate": ["gemini", "codex", "opencode", "claude"],
+      "review": ["gemini", "codex", "opencode", "claude"],
+      "commit": ["codex", "opencode", "gemini", "claude"]
+    },
+    "command": {}
+  },
+  "checkpoint": {
+    "enabled": true,
+    "autoApprove": false,
+    "autoApproveDelayMs": 5000
+  },
+  "execution": {
+    "wuTimeout": 300,
+    "maxRetries": 3
+  }
+}

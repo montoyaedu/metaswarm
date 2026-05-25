@@ -32,9 +32,9 @@ export function runTask(input: RunTaskInput): string {
 
   const router = fork?.modelRouter || defaultRouter
 
-  const decision: ModelDecision | undefined = router?.selectModel?.({
+  const decision = router?.selectModel?.({
     phase
-  })
+  }) as ModelDecision | undefined
 
   if (!decision) {
     throw new Error(

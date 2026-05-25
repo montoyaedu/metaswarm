@@ -1,3 +1,6 @@
+# Dana Server runtime data
+.dana/
+
 # BEADS runtime
 .beads/beads.db
 .beads/daemon.lock

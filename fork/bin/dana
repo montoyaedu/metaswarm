@@ -11,4 +11,17 @@ while [ -L "$LINK_PATH" ]; do
 done
 SCRIPT_DIR="$(cd "$(dirname "$LINK_PATH")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-exec npx tsx "$ROOT/fork/chat.ts" "$@"
+
+case "${1:-}" in
+  --full|-f)
+    shift
+    exec npx tsx "$ROOT/fork/orchestrate.ts" "$@"
+    ;;
+  --phase|-p)
+    shift
+    exec npx tsx "$ROOT/fork/cli.ts" "$@"
+    ;;
+  *)
+    exec npx tsx "$ROOT/fork/chat.ts" "$@"
+    ;;
+esac

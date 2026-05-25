@@ -12,3 +12,11 @@ export { runWithGemini } from "./providers/gemini"
 export { runWithClaude } from "./providers/claude"
 export { createSession, addPhaseResult, enrichPromptWithSession } from "./session"
 export type { ProviderName, TaskPhase, ModelContext, ModelDecision, SessionContext, PhaseResult } from "./types"
+export type { WorkUnit, MetaResult, WuResult } from "./orchestrate"
+export {
+  orchestrateFullPipeline,
+  orchestratePlan,
+  orchestratePlanReview,
+  orchestrateWu,
+  orchestrateFinalReview
+} from "./orchestrate"
