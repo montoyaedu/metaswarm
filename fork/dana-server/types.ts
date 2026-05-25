@@ -203,6 +203,9 @@ export function validateCreateRequest(body: unknown): CreateTaskRequest {
     }
     req.gitRemote = b.gitRemote.trim()
   }
+  if (!req.workingDir && !req.gitRemote) {
+    throw new Error("either workingDir or gitRemote is required")
+  }
   if (b.workUnits !== undefined) {
     if (!Array.isArray(b.workUnits)) throw new Error("workUnits must be an array")
     req.workUnits = (b.workUnits as Record<string, unknown>[]).map((wu, i) => {

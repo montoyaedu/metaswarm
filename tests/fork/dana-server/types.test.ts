@@ -1,30 +1,33 @@
 import { describe, it, expect } from "vitest"
 import { validateCreateRequest, isValidStatus } from "../../../fork/dana-server/types"
 
+const MINIMAL = { goal: "Build auth", workingDir: "/tmp/test-repo" }
+
 describe("validateCreateRequest", () => {
   it("accepts valid minimal request", () => {
-    const r = validateCreateRequest({ goal: "Build auth" })
+    const r = validateCreateRequest(MINIMAL)
     expect(r.goal).toBe("Build auth")
     expect(r.tags).toEqual([])
     expect(r.workUnits).toBeUndefined()
     expect(r.systemContext).toBeUndefined()
+    expect(r.workingDir).toBe("/tmp/test-repo")
   })
 
   it("trims goal", () => {
-    const r = validateCreateRequest({ goal: "  build  " })
+    const r = validateCreateRequest({ goal: "  build  ", workingDir: "/tmp/x" })
     expect(r.goal).toBe("build")
   })
 
   it("rejects missing goal", () => {
-    expect(() => validateCreateRequest({})).toThrow("goal is required")
+    expect(() => validateCreateRequest({ workingDir: "/tmp/x" })).toThrow("goal is required")
   })
 
   it("rejects empty goal", () => {
-    expect(() => validateCreateRequest({ goal: "  " })).toThrow("goal is required")
+    expect(() => validateCreateRequest({ goal: "  ", workingDir: "/tmp/x" })).toThrow("goal is required")
   })
 
   it("rejects non-string goal", () => {
-    expect(() => validateCreateRequest({ goal: 42 })).toThrow("goal is required")
+    expect(() => validateCreateRequest({ goal: 42, workingDir: "/tmp/x" })).toThrow("goal is required")
   })
 
   it("rejects non-object body", () => {
@@ -33,33 +36,33 @@ describe("validateCreateRequest", () => {
   })
 
   it("accepts tags", () => {
-    const r = validateCreateRequest({ goal: "x", tags: ["a", "b"] })
+    const r = validateCreateRequest({ ...MINIMAL, tags: ["a", "b"] })
     expect(r.tags).toEqual(["a", "b"])
   })
 
   it("rejects non-array tags", () => {
-    expect(() => validateCreateRequest({ goal: "x", tags: "not-array" }))
+    expect(() => validateCreateRequest({ ...MINIMAL, tags: "not-array" }))
       .toThrow("tags must be an array of strings")
   })
 
   it("rejects tags with non-strings", () => {
-    expect(() => validateCreateRequest({ goal: "x", tags: ["ok", 42] }))
+    expect(() => validateCreateRequest({ ...MINIMAL, tags: ["ok", 42] }))
       .toThrow("tags must be an array of strings")
   })
 
   it("accepts systemContext", () => {
-    const r = validateCreateRequest({ goal: "x", systemContext: "ctx" })
+    const r = validateCreateRequest({ ...MINIMAL, systemContext: "ctx" })
     expect(r.systemContext).toBe("ctx")
   })
 
   it("rejects non-string systemContext", () => {
-    expect(() => validateCreateRequest({ goal: "x", systemContext: 42 }))
+    expect(() => validateCreateRequest({ ...MINIMAL, systemContext: 42 }))
       .toThrow("systemContext must be a string")
   })
 
   it("accepts valid workUnits", () => {
     const r = validateCreateRequest({
-      goal: "x",
+      ...MINIMAL,
       workUnits: [{
         id: "WU-1", title: "Do thing", spec: "spec",
         dodItems: ["test"], fileScope: ["src/"],
@@ -74,7 +77,7 @@ describe("validateCreateRequest", () => {
 
   it("accepts workUnits with non-array dependencies", () => {
     const r = validateCreateRequest({
-      goal: "x",
+      ...MINIMAL,
       workUnits: [{
         id: "WU-1", title: "x", spec: "x",
         dodItems: [], fileScope: [], dependencies: "WU-0"
@@ -85,42 +88,62 @@ describe("validateCreateRequest", () => {
 
   it("rejects workUnits with missing id", () => {
     expect(() => validateCreateRequest({
-      goal: "x",
+      ...MINIMAL,
       workUnits: [{ title: "x", spec: "x", dodItems: [], fileScope: [] }]
     })).toThrow("workUnits[0].id is required")
   })
 
   it("rejects workUnits with empty title", () => {
     expect(() => validateCreateRequest({
-      goal: "x",
+      ...MINIMAL,
       workUnits: [{ id: "1", title: "  ", spec: "x", dodItems: [], fileScope: [] }]
     })).toThrow("workUnits[0].title is required")
   })
 
   it("rejects workUnits with empty spec", () => {
     expect(() => validateCreateRequest({
-      goal: "x",
+      ...MINIMAL,
       workUnits: [{ id: "1", title: "x", spec: "  ", dodItems: [], fileScope: [] }]
     })).toThrow("workUnits[0].spec is required")
   })
 
   it("rejects workUnits with non-array dodItems", () => {
     expect(() => validateCreateRequest({
-      goal: "x",
+      ...MINIMAL,
       workUnits: [{ id: "1", title: "x", spec: "x", dodItems: "not-array", fileScope: [] }]
     })).toThrow("dodItems must be a string array")
   })
 
   it("rejects workUnits with non-array fileScope", () => {
     expect(() => validateCreateRequest({
-      goal: "x",
+      ...MINIMAL,
       workUnits: [{ id: "1", title: "x", spec: "x", dodItems: [], fileScope: "bad" }]
     })).toThrow("fileScope must be a string array")
   })
 
   it("rejects non-array workUnits", () => {
-    expect(() => validateCreateRequest({ goal: "x", workUnits: "bad" }))
+    expect(() => validateCreateRequest({ ...MINIMAL, workUnits: "bad" }))
       .toThrow("workUnits must be an array")
+  })
+
+  it("accepts gitRemote instead of workingDir", () => {
+    const r = validateCreateRequest({ goal: "x", gitRemote: "https://github.com/user/repo.git" })
+    expect(r.gitRemote).toBe("https://github.com/user/repo.git")
+  })
+
+  it("rejects without both workingDir and gitRemote", () => {
+    expect(() => validateCreateRequest({ goal: "x" }))
+      .toThrow("either workingDir or gitRemote is required")
+  })
+
+  it("rejects empty workingDir", () => {
+    expect(() => validateCreateRequest({ goal: "x", workingDir: "  " }))
+      .toThrow("workingDir must be a non-empty string")
+  })
+
+  it("rejects empty gitRemote", () => {
+    expect(() => validateCreateRequest({ goal: "x", gitRemote: "  " }))
+      .toThrow("gitRemote must be a non-empty string")
   })
 })
 

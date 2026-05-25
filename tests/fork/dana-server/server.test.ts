@@ -96,7 +96,7 @@ describe("createDanaServer", () => {
 
     const create = await httpRequest(
       server, "POST", "/api/tasks",
-      JSON.stringify({ goal: "Build auth" })
+      JSON.stringify({ goal: "Build auth", workingDir: "/tmp/test-repo" })
     )
     expect(create.status).toBe(201)
     expect(create.data.id).toBeTruthy()
@@ -116,7 +116,7 @@ describe("createDanaServer", () => {
 
     const create = await httpRequest(
       server, "POST", "/api/tasks",
-      JSON.stringify({ goal: "test" })
+      JSON.stringify({ goal: "test", workingDir: "/tmp/test-repo" })
     )
     const detail = await httpRequest(server, "GET", `/api/tasks/${create.data.id}`)
     expect(detail.status).toBe(200)
@@ -146,8 +146,8 @@ describe("createDanaServer", () => {
     server.listen(0, "127.0.0.1")
     await new Promise(r => server.on("listening", r))
 
-    await httpRequest(server, "POST", "/api/tasks", JSON.stringify({ goal: "a" }))
-    await httpRequest(server, "POST", "/api/tasks", JSON.stringify({ goal: "b" }))
+    await httpRequest(server, "POST", "/api/tasks", JSON.stringify({ goal: "a", workingDir: "/tmp/x" }))
+    await httpRequest(server, "POST", "/api/tasks", JSON.stringify({ goal: "b", workingDir: "/tmp/x" }))
 
     const all = await httpRequest(server, "GET", "/api/tasks")
     expect(all.data).toHaveLength(2)
@@ -412,7 +412,7 @@ describe("createDanaServer", () => {
 
     const create = await httpRequest(
       server, "POST", "/api/tasks",
-      JSON.stringify({ goal: "to-delete" })
+      JSON.stringify({ goal: "to-delete", workingDir: "/tmp/x" })
     )
     expect(create.status).toBe(201)
 

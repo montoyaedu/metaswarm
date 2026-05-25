@@ -54,6 +54,9 @@ export function startTask(
     workUnits: task.workUnits && task.workUnits.length > 0 ? task.workUnits : undefined
   }
 
+  if (task.workingDir) input.workingDir = task.workingDir
+  if (task.gitRemote) input.gitRemote = task.gitRemote
+
   if (task.wuResults && task.wuResults.length > 0) {
     input.resumeFrom = {
       currentWuIndex: task.currentWuIndex,

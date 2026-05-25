@@ -116,8 +116,8 @@ async function main() {
     })
   }
 
-  // Workspace setup: resolve working dir and branch
-  let workspaceDir = config.workingDir || process.cwd()
+  // Workspace setup: must use provided workingDir or clone gitRemote
+  let workspaceDir: string
   let workspaceBranch: string | undefined
   const taskSlug = goal.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 20)
   const shortId = typeof config === "object" && "goal" in config
@@ -125,11 +125,15 @@ async function main() {
   workspaceBranch = `dana/${shortId}/${taskSlug}`
 
   if (config.gitRemote) {
-    // Clone remote to temp dir
     const { mkdtempSync } = require("fs")
     const tmpDir = mkdtempSync("/tmp/dana-")
     execSync(`git clone --depth 1 "${config.gitRemote}" "${tmpDir}"`, { stdio: "pipe" })
     workspaceDir = tmpDir
+  } else if (config.workingDir) {
+    workspaceDir = config.workingDir
+  } else {
+    emit("error", { message: "Neither workingDir nor gitRemote provided" })
+    process.exit(1)
   }
 
   // Create working branch (best-effort in demo mode)

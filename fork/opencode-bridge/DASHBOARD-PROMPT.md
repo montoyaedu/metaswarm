@@ -33,7 +33,7 @@ TUTTI gli endpoint restituiscono JSON con CORS `Access-Control-Allow-Origin: *`.
 ### Tasks
 - `GET /api/tasks` — lista task con stato granulare. Query param `?status=running`
 - `GET /api/tasks/:id` — dettaglio task con events, workUnits, wuResults
-- `POST /api/tasks` — crea task. Body: `{goal, workUnits[], tags[], workingDir?, gitRemote?}`
+- `POST /api/tasks` — crea task. Body: `{goal, workUnits[], tags[], workingDir, gitRemote}`. Obbligatorio: uno tra `workingDir` (path locale) o `gitRemote` (URL da clonare). Il server non lavora mai sulla propria directory.
 
 ### DELETE /api/tasks/:id — elimina definitivamente task ed eventi (nessun trace)
 
@@ -77,7 +77,7 @@ export function createDanaClient(baseUrl?: string)
 // Metodi:
 client.listTasks(status?: string): Promise<TaskSummary[]>
 client.getTask(id: string): Promise<TaskDetail>
-client.createTask(goal: string, workUnits?: WorkUnitInput[], tags?: string[]): Promise<{id: string}>
+client.createTask(goal: string, workUnits?: WorkUnitInput[], tags?: string[], workingDir?: string, gitRemote?: string): Promise<{id: string, workingDir?: string, gitRemote?: string}>
 client.listCheckpoints(): Promise<CheckpointSummary[]>
 client.approveCheckpoint(taskId: string, action: "approve"|"reject", comment?: string): Promise<void>
 client.getEvents(taskId: string): Promise<TaskEvent[]>

@@ -171,7 +171,9 @@ export function createDanaServer(
         }
         jsonResponse(res, 201, {
           id: task.id, status: "running", goal: task.goal,
-          workUnits: task.workUnits.length
+          workUnits: task.workUnits.length,
+          workingDir: parsed.workingDir,
+          gitRemote: parsed.gitRemote
         })
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Invalid request"
