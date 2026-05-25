@@ -16,6 +16,9 @@ export interface Task {
   createdAt: string
   startedAt?: string
   completedAt?: string
+  workingDir?: string
+  gitRemote?: string
+  workingBranch?: string
 }
 
 export type TaskPhase = string
@@ -105,6 +108,8 @@ export interface CreateTaskRequest {
   workUnits?: WorkUnitInput[]
   systemContext?: string
   tags?: string[]
+  workingDir?: string
+  gitRemote?: string
 }
 
 export interface WorkUnitInput {
@@ -127,6 +132,9 @@ export interface TaskSummary {
   createdAt: string
   error?: string
   tags: string[]
+  workingDir?: string
+  gitRemote?: string
+  workingBranch?: string
 }
 
 export interface TaskDetail extends TaskSummary {
@@ -182,6 +190,18 @@ export function validateCreateRequest(body: unknown): CreateTaskRequest {
       throw new Error("systemContext must be a string")
     }
     req.systemContext = b.systemContext
+  }
+  if (b.workingDir !== undefined) {
+    if (typeof b.workingDir !== "string" || !b.workingDir.trim()) {
+      throw new Error("workingDir must be a non-empty string")
+    }
+    req.workingDir = b.workingDir.trim()
+  }
+  if (b.gitRemote !== undefined) {
+    if (typeof b.gitRemote !== "string" || !b.gitRemote.trim()) {
+      throw new Error("gitRemote must be a non-empty string")
+    }
+    req.gitRemote = b.gitRemote.trim()
   }
   if (b.workUnits !== undefined) {
     if (!Array.isArray(b.workUnits)) throw new Error("workUnits must be an array")

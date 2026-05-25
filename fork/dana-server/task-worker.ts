@@ -59,6 +59,8 @@ interface WuResultSnapshot {
 interface WorkerConfig {
   goal: string
   workUnits?: WUConfig[]
+  workingDir?: string
+  gitRemote?: string
   resumeFrom?: {
     currentWuIndex: number
     attempt: number
@@ -114,6 +116,35 @@ async function main() {
     })
   }
 
+  // Workspace setup: resolve working dir and branch
+  let workspaceDir = config.workingDir || process.cwd()
+  let workspaceBranch: string | undefined
+  const taskSlug = goal.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 20)
+  const shortId = typeof config === "object" && "goal" in config
+    ? Math.random().toString(36).slice(2, 8) : "000000"
+  workspaceBranch = `dana/${shortId}/${taskSlug}`
+
+  if (config.gitRemote) {
+    // Clone remote to temp dir
+    const { mkdtempSync } = require("fs")
+    const tmpDir = mkdtempSync("/tmp/dana-")
+    execSync(`git clone --depth 1 "${config.gitRemote}" "${tmpDir}"`, { stdio: "pipe" })
+    workspaceDir = tmpDir
+  }
+
+  // Create working branch (best-effort in demo mode)
+  try {
+    execSync(`git checkout -b "${workspaceBranch}"`, { cwd: workspaceDir, stdio: "pipe" })
+  } catch { /* branch creation best-effort */ }
+
+  emitEvent({
+    type: "workspace.ready",
+    directory: workspaceDir,
+    branch: workspaceBranch,
+    fromRemote: !!config.gitRemote,
+    ts: new Date().toISOString()
+  })
+
   try {
     const workUnits = config.workUnits && config.workUnits.length > 0
       ? config.workUnits.map(w => ({
@@ -152,11 +183,84 @@ async function main() {
 
       emit("progress", { wuIndex: -1, wuId: "", phase: "plan", attempt: 1 })
 
-      // Rich plan review: 3 reviewers with findings
+      // Rich plan review: 3 reviewers with findings and full chat text
       const reviewers = [
-        { id: "architect-1", approved: true, findings: [], provider: "gemini", duration: 3200, inputTokens: 1450, outputTokens: 320, agentResponse: "L'architettura proposta è solida. Consiglio di separare il modulo di logging in un file dedicato." },
-        { id: "architect-2", approved: false, findings: ["File scope troppo ampia: include intero src/", "Specificare dipendenze WU"], provider: "codex", duration: 4100, inputTokens: 2100, outputTokens: 580, agentResponse: "La pianificazione è troppo vaga. Ogni WU dovrebbe specificare un file scope preciso, non l'intera directory src/. Inoltre mancano le dipendenze tra WU." },
-        { id: "architect-3", approved: true, findings: ["Ok ma aggiungere test per edge case"], provider: "gemini", duration: 2800, inputTokens: 980, outputTokens: 410, agentResponse: "La suddivisione in WU è ragionevole. Aggiungerei test per gli edge cases di autenticazione." }
+        {
+          id: "architect-1", approved: true, findings: [], provider: "gemini",
+          duration: 3200, inputTokens: 1450, outputTokens: 320,
+          agentResponse: `## Architectural Review: WU-1 (Analisi requisiti)
+
+**Verdetto: APPROVED** ✓
+
+La pianificazione proposta è solida e ben strutturata. Ecco i punti salienti:
+
+### Punti di forza
+- La suddivisione in work units è logica e segue il principio di separazione delle responsabilità
+- La specifica di WU-1 copre adeguatamente la fase di analisi
+- I criteri di completamento (DoD) sono chiari e verificabili
+
+### Raccomandazioni (non blocking)
+1. Suggerisco di separare il modulo di logging in un file dedicato per migliorare la manutenibilità
+2. Valutare l'aggiunta di un diagramma di sequenza per chiarire i flussi critici
+
+### Metriche
+- Copertura requisiti: 90%
+- Rischio tecnico: Basso
+- Complessità stimata: 3/10
+
+La pianificazione può procedere senza modifiche.`
+        },
+        {
+          id: "architect-2", approved: false,
+          findings: ["File scope troppo ampia: include intero src/", "Specificare dipendenze WU"],
+          provider: "codex", duration: 4100, inputTokens: 2100, outputTokens: 580,
+          agentResponse: `## Architectural Review: Intera pianificazione
+
+**Verdetto: NEEDS CHANGES** ✗
+
+Ho identificato problemi strutturali che richiedono correzioni prima dell'approvazione.
+
+### Bloccanti
+1. **File scope troppo ampio**: La WU-1 specifica "src/" come file scope, che include l'intera directory del codice sorgente. Ogni WU deve specificare un file scope preciso (es. "src/modules/auth/", "src/utils/logger.ts"). Scope ampi rendono impossibile il parallelismo e aumentano il rischio di conflitti.
+
+2. **Dipendenze non specificate**: Nessuna WU dichiara dipendenze esplicite. In un sistema a 3 WU, WU-3 (Review) dipende da WU-2 (Implementazione), che a sua volta dipende da WU-1 (Analisi). Senza dipendenze, l'orchestratore non può ottimizzare l'ordine di esecuzione.
+
+### Minori
+- Mancano criteri di accettazione quantitativi (es. "latenza < 200ms")
+- La specifica di WU-2 è troppo generica ("Scrivere README.md" non include formato o struttura)
+
+### Azioni richieste
+1. Restringere ogni file scope a massimo 1-2 directory
+2. Aggiungere array dependencies a ogni WU
+3. Rendere i DoD misurabili
+
+La pianificazione DEVE essere rivista prima dell'approvazione.`
+        },
+        {
+          id: "architect-3", approved: true,
+          findings: ["Ok ma aggiungere test per edge case"],
+          provider: "gemini", duration: 2800, inputTokens: 980, outputTokens: 410,
+          agentResponse: `## Architectural Review: WU-3 (Review finale)
+
+**Verdetto: APPROVED WITH COMMENTS** ✓
+
+La suddivisione in work units è ragionevole e segue le best practice del progetto.
+
+### Commenti
+- La WU-3 di review finale è ben pensata, ma aggiungerei test specifici per gli edge cases di autenticazione (token scaduto, refresh token, utenza disabilitata)
+- Il flusso di validazione incrociata tra WU è appropriato
+- La pipeline di quality gate è corretta
+
+### Metriche
+- Completezza: 85% (mancano edge case test)
+- Rischio: Medio-basso
+- Impatto su timeline: Nessuno
+
+### Suggerimento
+Aggiungere una WU-4 opzionale per test di carico se il sistema deve gestire >1000 req/s.
+
+Approvato con le raccomandazioni sopra.`
+        }
       ]
       for (const r of reviewers) {
         emitEvent({
@@ -214,8 +318,53 @@ async function main() {
           provider: "codex", duration: Date.now() - t1,
           filesChanged: absFileScope,
           inputTokens: 2340, outputTokens: 890, tokenTotal: 3230,
-          agentPrompt: `Implementa ${wu.title} secondo la specifica: ${wu.spec}. File scope: ${wu.fileScope.join(", ")}. DoD: ${wu.dodItems.join(", ")}`,
-          agentResponse: `Implemented ${wu.title} — aggiunti file ${wu.fileScope.join(", ")} con handling errori, validazione input, test coverage 85%`,
+          agentPrompt: `## System
+
+Sei un senior software engineer. Implementa la work unit secondo la specifica.
+
+## Work Unit: ${wu.title}
+
+### Specifica
+${wu.spec}
+
+### File scope
+${wu.fileScope.join(", ")}
+
+### Definition of Done
+${wu.dodItems.map((d, i) => `${i + 1}. ${d}`).join("\n")}
+
+### Istruzioni
+1. Analizza il file scope esistente per capire i pattern del progetto
+2. Implementa secondo la specifica rispettando i DoD
+3. Scrivi test per coprire la nuova funzionalità
+4. Assicurati che i test esistenti continuino a passare
+5. Segui le convenzioni di codice già presenti nel progetto`,
+          agentResponse: `## Implementation Report: ${wu.title}
+
+### Summary
+Implemented ${wu.title} successfully across ${wu.fileScope.length} files.
+
+### Changes Made
+${wu.fileScope.map(f => `- \`${f}\`: added implementation with error handling, input validation, logging`).join("\n")}
+
+### Test Results
+- Unit tests: PASS (12 new, 45 existing)
+- Coverage: 87% (+2% from baseline)
+- Lint: PASS (0 errors, 2 warnings — pre-existing)
+- TypeScript: PASS (strict mode)
+
+### Quality Metrics
+- Complexity: 8 (below threshold of 15)
+- Duplication: 0%
+- Documentation: 100% public API documented
+
+### Edge Cases Handled
+- Empty input: validated with descriptive error
+- Null/undefined: guarded with early returns
+- Timeout: configurable via environment variable
+- Concurrent access: protected with mutex
+
+All implementation criteria met. Ready for validation.`,
           ts: new Date().toISOString()
         })
 
@@ -227,8 +376,49 @@ async function main() {
           type: "wu.phase", wu: wu.id, phase: "validate", attempt: 1,
           provider: "gemini", duration: Date.now() - t2,
           inputTokens: 1890, outputTokens: 420, tokenTotal: 2310,
-          agentPrompt: `Valida la qualità dell'implementazione per ${wu.title}. Verifica: ${wu.dodItems.join(", ")}`,
-          agentResponse: `Validazione passata. Codice pulito, segue i pattern esistenti, coverage adeguata. Un suggerimento: aggiungere test per lo scenario di timeout.`,
+          agentPrompt: `## System
+
+Sei un senior QA engineer specializzato in code review e validazione.
+
+## Validation Request: ${wu.title}
+
+### Definition of Done da verificare
+${wu.dodItems.map((d, i) => `${i + 1}. ${d}`).join("\n")}
+
+### Criteri di validazione aggiuntivi
+- [ ] Il codice segue i pattern del progetto?
+- [ ] I test coprono sia happy path che edge cases?
+- [ ] Non ci sono regressioni nei test esistenti?
+- [ ] La documentazione è aggiornata?
+- [ ] Le performance sono accettabili?
+- [ ] La sicurezza è garantita (input sanitization, auth checks)?
+
+### Output richiesto
+Per ogni criterio: PASS/FAIL/WARN con motivazione.`,
+          agentResponse: `## Validation Report: ${wu.title}
+
+### DoD Verification
+1. ✅ Implementation compiles — PASS (0 errors, strict mode)
+2. ✅ Tests pass — PASS (all 57 tests green)
+3. ✅ Follows existing patterns — PASS (consistent with codebase conventions)
+
+### Quality Gates
+| Gate | Status | Details |
+|------|--------|---------|
+| Code style | ✅ PASS | Matches Prettier/ESLint config, no warnings |
+| Test coverage | ✅ PASS | 87% (threshold: 80%) |
+| Documentation | ✅ PASS | JSDoc on all public APIs |
+| Performance | ⚠️ WARN | Una query N+1 in getUserProfile() — considera eager loading |
+| Security | ✅ PASS | Input sanitized, SQL parameterized, auth check presente |
+| Types | ✅ PASS | Strict TypeScript, no 'any' types |
+
+### Recommendations (non-blocking)
+1. **Performance**: Sostituire il loop in getUserProfile() con una query JOIN per eliminare il pattern N+1
+2. **Testing**: Aggiungere test per lo scenario di timeout della rete (simulato con jest fake timers)
+3. **Logging**: Aggiungere log strutturato (JSON) invece di console.log()
+
+### Verdict
+**PASS** with minor recommendations. L'implementazione è solida e pronta per il merge.`,
           ts: new Date().toISOString()
         })
 

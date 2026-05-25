@@ -154,7 +154,9 @@ export function createDanaServer(
         const task = store.createTask(parsed.goal, {
           tags: parsed.tags || [],
           workUnits: parsed.workUnits,
-          phase: "plan"
+          phase: "plan",
+          workingDir: parsed.workingDir,
+          gitRemote: parsed.gitRemote
         })
         eventLog.write({
           type: "task.created", taskId: task.id,

@@ -33,8 +33,9 @@ TUTTI gli endpoint restituiscono JSON con CORS `Access-Control-Allow-Origin: *`.
 ### Tasks
 - `GET /api/tasks` — lista task con stato granulare. Query param `?status=running`
 - `GET /api/tasks/:id` — dettaglio task con events, workUnits, wuResults
-- `POST /api/tasks` — crea task. Body: `{goal, workUnits[], tags[]}`
-- `DELETE /api/tasks/:id` — elimina definitivamente task ed eventi (nessun trace)
+- `POST /api/tasks` — crea task. Body: `{goal, workUnits[], tags[], workingDir?, gitRemote?}`
+
+### DELETE /api/tasks/:id — elimina definitivamente task ed eventi (nessun trace)
 
 ### Stato granulare di un task
 ```json
@@ -47,7 +48,10 @@ TUTTI gli endpoint restituiscono JSON con CORS `Access-Control-Allow-Origin: *`.
   "workUnits": [{"id":"WU-1","title":"...","spec":"...","checkpoint":false}],
   "wuResults": [{"id":"WU-1","committed":true,"implementAttempts":1}],
   "checkpoint": {"wuId":"WU-2","phase":"checkpoint:WU-2","reason":"...","prompt":"..."},
-  "events": [{"type":"phase.start","phase":"plan","ts":"..."}]
+  "events": [{"type":"phase.start","phase":"plan","ts":"..."}],
+  "workingDir": "/path/to/repo",
+  "gitRemote": "https://github.com/user/repo.git",
+  "workingBranch": "dana/abc123/add-readme"
 }
 ```
 
@@ -138,7 +142,7 @@ Ogni task ora emette eventi arricchiti durante l'esecuzione. Questi eventi sono 
  "approved":false, "findings":["File scope troppo ampia","Specificare dipendenze"],
  "provider":"codex", "duration":4100,
  "inputTokens":2100, "outputTokens":580, "tokenTotal":2680,
- "agentResponse":"La pianificazione è troppo vaga. Ogni WU dovrebbe specificare un file scope preciso..."}
+ "agentResponse":"## Architectural Review: Intera pianificazione\n\n**Verdetto: NEEDS CHANGES** ✗\n\n### Bloccanti\n1. **File scope troppo ampio**: Ogni WU deve specificare un file scope preciso...\n2. **Dipendenze non specificate**: Nessuna WU dichiara dipendenze esplicite...\n\n### Azioni richieste\n1. Restringere ogni file scope a massimo 1-2 directory\n2. Aggiungere array dependencies a ogni WU"}
 ```
 
 #### Evento: `wu.phase` (× 2 per WU — implement + validate)
@@ -147,8 +151,8 @@ Ogni task ora emette eventi arricchiti durante l'esecuzione. Questi eventi sono 
 {"type":"wu.phase", "wu":"WU-1", "phase":"implement", "attempt":1,
  "provider":"codex", "duration":12000, "filesChanged":["/abs/path/src/foo.ts"],
  "inputTokens":2340, "outputTokens":890, "tokenTotal":3230,
- "agentPrompt":"Implementa ...",
- "agentResponse":"Implemented WU-1 — aggiunti file src/ con handling errori, validazione input"}
+ "agentPrompt":"## System\n\nSei un senior software engineer. Implementa la work unit...\n\n### Specifica\nAggiungere autenticazione JWT...\n\n### Definition of Done\n1. Implementazione compila\n2. Test passano\n3. Pattern esistenti rispettati",
+ "agentResponse":"## Implementation Report\n\n### Summary\nImplemented JWT auth across 3 files.\n\n### Changes Made\n- src/auth/login.ts: login flow con validazione\n- src/auth/middleware.ts: JWT verification\n- tests/auth.test.ts: 12 test cases\n\n### Quality Metrics\n- Coverage: 87%\n- Complexity: 8\n- Lint: PASS"}
 ```
 
 #### Evento: `wu.commit` (× 1 per WU completata)
@@ -181,6 +185,16 @@ Ogni task ora emette eventi arricchiti durante l'esecuzione. Questi eventi sono 
  ],
  "inputTokens":4530, "outputTokens":1310, "tokenTotal":5840}
 ```
+
+#### Evento: `workspace.ready` (emesso all'inizio dell'esecuzione)
+
+```json
+{"type":"workspace.ready", "directory":"/tmp/dana-abc123",
+ "branch":"dana/abc123/add-readme",
+ "fromRemote":false}
+```
+
+Il worker crea sempre un branch di lavoro (`dana/<shortId>/<goal-slug>`) prima di eseguire qualsiasi WU. Se `gitRemote` è specificato, clona il repo in una directory temporanea. Il campo `workingDir` nel task indica dove il worker sta operando.
 
 ### 7. Vue componenti per osservabilità
 

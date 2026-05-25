@@ -35,6 +35,8 @@ export function createStore(config: StoreConfig) {
       workUnits?: WorkUnitInput[]
       provider?: string
       phase?: TaskPhase
+      workingDir?: string
+      gitRemote?: string
     }
   ): Task {
     const task: Task = {
@@ -50,6 +52,8 @@ export function createStore(config: StoreConfig) {
       createdAt: new Date().toISOString()
     }
     if (opts?.provider) task.provider = opts.provider
+    if (opts?.workingDir) task.workingDir = opts.workingDir
+    if (opts?.gitRemote) task.gitRemote = opts.gitRemote
     appendLine(task)
     return task
   }
@@ -98,7 +102,10 @@ export function createStore(config: StoreConfig) {
       attempt: task.attempt,
       createdAt: task.createdAt,
       error: task.error,
-      tags: task.tags
+      tags: task.tags,
+      workingDir: task.workingDir,
+      gitRemote: task.gitRemote,
+      workingBranch: task.workingBranch
     }
   }
 
